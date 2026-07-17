@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>گەشتە فێربوونییەکان — پلاتفۆرمی پەروەردەیی پێشەنگ</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS Frameworks & Leaflet Map Styles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    
+    <!-- FontAwesome Icons for visual layout -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans Arabic', 'sans-serif'],
+                        display: ['Noto Sans Arabic', 'Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        pine: {
+                            50: '#f2f8f5',
+                            100: '#e1efe8',
+                            200: '#c5dfd2',
+                            500: '#3a715a',
+                            800: '#16382a',
+                            900: '#0f2a20',
+                            950: '#0a1e17',
+                        },
+                        gold: {
+                            300: '#e9cd82',
+                            500: '#c9a24b',
+                            600: '#a8823a',
+                        },
+                        parchment: '#efe8d6',
+                        ink: '#14251c',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .contour-bg {
+            position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.15;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='140' viewBox='0 0 420 140'%3E%3Cg fill='none' stroke='%23c9a24b' stroke-width='1'%3E%3Cpath d='M-10 20 C 40 0, 80 40, 130 20 S 220 0, 270 20 S 360 40, 410 20' /%3E%3Cpath d='M-10 55 C 40 35, 80 75, 130 55 S 220 35, 270 55 S 360 75, 410 55' opacity='0.7'/%3E%3Cpath d='M-10 90 C 40 70, 80 110, 130 90 S 220 70, 270 90 S 360 110, 410 90' opacity='0.5'/%3E%3C/g%3E%3C/svg%3E");
+            background-repeat: repeat;
+            mix-blend-mode: screen;
+        }
+        #leaflet-target {
+            filter: grayscale(0.5) sepia(0.3) saturate(1.2) brightness(0.8) contrast(1.1);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0f2a20;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c9a24b;
+            border-radius: 99px;
+        }
+    </style>
+</head>
+<body class="h-full bg-pine-950 text-parchment font-sans overflow-x-hidden antialiased flex flex-col">
+
+    <div class="contour-bg" aria-hidden="true"></div>
+
+    <!-- Global Header -->
+    <header class="relative z-50 bg-pine-900 border-b border-pine-800 px-6 py-4 flex items-center justify-between shadow-xl">
+        <div class="flex items-center gap-3">
+            <div class="bg-gold-500 text-pine-950 p-2.5 rounded-xl font-bold flex items-center justify-center shadow-lg shadow-gold-500/10">
+                <i class="fa-solid fa-compass-drafting text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="font-display font-black text-xl text-white tracking-wide">گەشتە فێربوونییەکان</h1>
+                <p class="text-xs text-gold-300 font-mono tracking-wider uppercase" id="nav-mode-indicator">کۆنسۆڵی چاودێری مامۆستا</p>
+            </div>
+        </div>
+        
+        <!-- Quick View Switcher for Sandbox testing -->
+        <div class="flex items-center gap-3 bg-pine-950 p-1.5 rounded-xl border border-pine-800">
+            <button onclick="switchSystemView('teacher')" id="view-teacher-btn" class="px-4 py-1.5 text-xs rounded-lg font-bold transition text-gold-300 bg-pine-800">مامۆستا</button>
+            <button onclick="switchSystemView('projector')" id="view-projector-btn" class="px-4 py-1.5 text-xs rounded-lg font-bold transition text-gray-400 hover:text-white">پڕۆجێکتۆر</button>
+            <button onclick="switchSystemView('student')" id="view-student-btn" class="px-4 py-1.5 text-xs rounded-lg font-bold transition text-gray-400 hover:text-white">قوتابی</button>
+        </div>
+    </header>
+
+    <!-- Main Dynamic Application Core -->
+    <main id="main-content" class="relative z-10 flex-1 flex flex-col min-h-0">
+        <!-- Managed dynamically by Javascript state -->
+    </main>
+
+    <!-- Toast Feedback Banner (Avoid browser alerts) -->
+    <div id="custom-toast" class="hidden fixed bottom-6 left-6 z-[120] bg-gold-500 text-pine-950 px-6 py-4 rounded-2xl font-bold shadow-2xl flex items-center gap-3 transition-all duration-350 translate-y-2">
+        <i class="fa-solid fa-circle-info text-lg"></i>
+        <span id="toast-message">نامە</span>
+    </div>
+
+    <!-- Simulated Verification Email Inbox Simulator -->
+    <div id="email-verification-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-pine-900 border border-pine-700 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative">
+            <div class="bg-gold-500 p-5 text-pine-950 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-envelope-open-text text-xl"></i>
+                    <span class="font-display font-black text-sm">سندوقی نامەی سەلماندنی فێرکاری (کۆدی ساختە)</span>
+                </div>
+                <button onclick="closeEmailVerificationModal()" class="text-pine-950 hover:text-black"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-6 space-y-4 text-right">
+                <div class="bg-pine-950 border border-pine-800 p-4 rounded-xl font-mono text-xs text-gray-300 space-y-1">
+                    <div><strong>نێرەر:</strong> security@learningjourneys.edu.iq</div>
+                    <div><strong>بۆ:</strong> <span id="simulated-recipient">email@gmail.com</span></div>
+                    <div><strong>بابەت:</strong> کۆدی چالاککردنی ئەکاونتی نوێی مامۆستا</div>
+                </div>
+                <div class="bg-parchment text-pine-950 p-6 rounded-2xl text-center space-y-3">
+                    <p class="text-sm font-bold">تکایە ئەم کۆدەی خوارەوە بەکاربهێنە بۆ تەواوکردنی تۆمارکردنی ناونیشانەکەت:</p>
+                    <div id="simulated-code" class="text-3xl font-black tracking-widest text-emerald-950 select-all">482910</div>
+                    <p class="text-[10px] text-gray-500">ئەمە نامەیەکی ڕاهێنانی ئەلیکترۆنییە بۆ ئاسانکاری تۆماربوون.</p>
+                </div>
+                <button onclick="closeEmailVerificationModal()" class="w-full bg-pine-800 text-gold-300 font-bold py-3 rounded-xl hover:bg-pine-700 border border-gold-500/20 transition text-xs">کۆپی کردنی کۆد و داخستن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Required JS Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        const SUPABASE_URL = 'https://wmhuetfqmlpobbnsqorr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtaHVldGZxbWxwb2JibnNxb3JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMzcxNTgsImV4cCI6MjA5OTcxMzE1OH0.f_a247jJYG2edXuAr4kNTqrbo03mbOXLEgCAmHkjgfU';
+        
+        let supabaseClient = null;
+        try {
+            if (supabase) {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+        } catch (e) {
+            console.error("Supabase failed: ", e);
+        }
+
+        const PRELOADED_QUESTION_BANK = {
+            city: [
+                { id: 'q_c1', topic: 'شارستانیەتە کۆنەکان', text: "قەڵای دێرینی هەولێر لە کوێی شارەکەدا هەڵکەوتووە؟", options: ["ناوەڕاستی هەولێر", "باکووری هەولێر", "باشووری هەولێر", "دەرەوەی سنووری شارەکە"], correctIndex: 0 },
+                { id: 'q_c2', topic: 'جوگرافیا', text: "کام گەرووی بەناوبانگ ئەوروپا و ئاسیا لە ئەستەنبوڵ لە یەکتر جیادەکاتەوە؟", options: ["جبرلتار", "گەرووی بۆسفۆر", "سوێس", "مەلاکە"], correctIndex: 1 },
+                { id: 'q_c3', topic: 'مۆسیقا و هونەر', text: "کام ئاوازدانەری کلاسیکی بەناوبانگ لە ڤییەنا ژیاوە و کاری کردووە؟", options: ["لۆدڤیگ ڤان بێتھۆڤن", "ڤیڤاڵدی", "باخ", "شۆپان"], correctIndex: 0 },
+                { id: 'q_c4', topic: 'مێژووی ڕۆمانی', text: "ناوی هۆڵی کۆلۆسیۆمی کۆنی ڕۆما بۆ چی بەکاردەهات؟", options: ["کێبڕکێ و جەنگی گڵادیاتۆرەکان", "پەرستگای ئایینی", "کۆشکی شاهانە", "بازاڕی گشتی"], correctIndex: 0 },
+                { id: 'q_c5', topic: 'نیشانە جیهانییەکان', text: "تاوەری ئیڤڵ لە کام شاردایە؟", options: ["مۆسکۆ", "پاریس", "لەندەن", "بەرلین"], correctIndex: 1 }
+            ],
+            mountain: [
+                { id: 'q_m1', topic: 'جوگرافیای ناوخۆیی', text: "بەرزترین لوتکە چیای باشووری کوردستان و عێراق کامەیە؟", options: ["هەڵگورد", "سەفین", "ئارارات", "کۆڕەک"], correctIndex: 0 },
+                { id: 'q_m2', topic: 'مێژوو و جیاوازی', text: "کام لەم چیایانە بە چیایەکی پیرۆز دادەنرێت کە کەشتی نوحی لێ نیشتۆتەوە؟", options: ["چیای ئارارات", "هەڵگورد", "ئێڤرێست", "سەفین"], correctIndex: 0 },
+                { id: 'q_m3', topic: 'زیندەوەرەکانی ئەفریقا', text: "بەرزترین چیای کیشوەری ئەفریقا کامەیە؟", options: ["کیلیمانجارۆ", "کینیا", "مۆنتی ڕۆزا", "تۆبکال"], correctIndex: 0 },
+                { id: 'q_m4', topic: 'ئامارە زانستییەکان', text: "بەرزی لوتکەی ئێڤرێست نزیکەی چەند مەترە؟", options: ["٨،٨٤٨ مەتر", "٧،٢٠٠ مەتر", "٩،١٠٠ مەتر", "٦،٥٠٠ مەتر"], correctIndex: 0 },
+                { id: 'q_m5', topic: 'تەکتۆنیک', text: "چیاکان چۆن دروست دەبن؟", options: ["بەهۆی جووڵە و پێکداکێشانی پلێتە تەکتۆنییەکانەوە", "شەپۆلەکانی زەریا", "گەردەلوولەکان", "گەرمبوونی جیهان"], correctIndex: 0 }
+            ],
+            river: [
+                { id: 'q_r1', topic: 'سەرچاوەی ئاوەکان', text: "ڕووباری زێی گەورە لە کام وڵاتەوە سەرچاوە دەگرێت؟", options: ["تورکیا (چیاکانی تۆرۆس)", "دەشتەکانی عێراق", "گردەکانی ئێران", "بیابانی سووریا"], correctIndex: 0 },
+                { id: 'q_r2', topic: 'هایدرۆلۆجی نیشتمانی', text: "کام ڕووبار بە ناو شاری بەغدادا تێدەپەڕێت؟", options: ["دیجلە", "فوڕات", "زێی گەورە", "دیالە"], correctIndex: 0 },
+                { id: 'q_r3', topic: 'تۆمارە جیهانییەکان', text: "درێژترین ڕووباری جیهان کامەیە؟", options: ["ڕووباری نیل", "ڕووباری ئەمەزۆن", "ڕووباری یانگتسی", "میسیسیپی"], correctIndex: 0 },
+                { id: 'q_r4', topic: 'میسۆپۆتامیا', text: "یەکگرتنی دیجلە و فوڕات لە باشووری عێراق چ ڕووبارێک پێکدەهێنێت؟", options: ["شەتولعەرەب", "دەریای سوور", "کۆنالی سوێس", "زێی گەورە"], correctIndex: 0 },
+                { id: 'q_r5', topic: 'چەمکە زانستییەکان', text: "خاڵی یەکگرتنی دوو ڕووبار بە چی ناودەبرێت؟", options: ["دەروازەی یەکگرتن (Confluence)", "دەلتا", "سەرچاوە", "ڕێژگە (Estuary)"], correctIndex: 0 }
+            ],
+            space: [
+                { id: 'q_s1', topic: 'سیستەمی خۆر', text: "کام هەسارە لە هەمووانەوە لە خۆرەوە نزیکترە؟", options: ["عەتارد (Mercury)", "ڤینۆس (Venus)", "زەوی", "مەریخ"], correctIndex: 0 },
+                { id: 'q_s2', topic: 'فیزیکی گەردوون', text: "چەند خولەکی دەوێت تا تیشکی خۆر بگاتە زەوی؟", options: ["٨ خولەک", "٢ کاتژمێر", "١ چرکە", "ڕاستەوخۆ"], correctIndex: 0 },
+                { id: 'q_s3', topic: 'فیزیکی فەلەک', text: "گەورەترین هەسارەی کۆمەڵەی خۆر کامەیە؟", options: ["موشتەری (Jupiter)", "زوحەل (Saturn)", "نێپتون", "ئۆرانۆس"], correctIndex: 0 },
+                { id: 'q_s4', topic: 'زانستی هەسارەکان', text: "کام هەسارە بە هەسارەی سوور دەناسرێت بەهۆی بوونی ئۆکسیدی ئاسن؟", options: ["مەریخ (Mars)", "ڤینۆس", "عەتارد", "موشتەری"], correctIndex: 0 },
+                { id: 'q_s5', topic: 'یاساکانی گەردوون', text: "کام هێز هەسارەکان لە دەوری خۆر دەهێڵێتەوە لە خولگەکانیاندا؟", options: ["هێزی کێشکردن (Gravity)", "هێزی موگناتیسی", "هێزی دوورکەوتنەوە", "لێکخشاندن"], correctIndex: 0 }
+            ],
+            ocean: [
+                { id: 'q_o1', topic: 'زانستی زەریاکان', text: "قووڵترین شوێنی زانراوی سەر توێکڵی زەوی لە کوێیە؟", options: ["قووڵکەی ماریانا", "قووڵکەی جاڤا", "قووڵکەی پۆرتۆ ڕیکۆ", "قووڵکەی سوندا"], correctIndex: 0 },
+                { id: 'q_o2', topic: 'پێکهاتەی زەوی', text: "چەند لەسەدی ئاوەکانی سەر زەوی لە زەریاکاندایە؟", options: ["نزیکەی ٩٧٪", "نزیکەی ٥٠٪", "نزیکەی ١٠٪", "نزیکەی ٧٠٪"], correctIndex: 0 },
+                { id: 'q_o3', topic: 'ژیانی زەریایی قووڵ', text: "لە کام بەشی زەریادا تاریکی ڕەها و هەمیشەیی هەیە؟", options: ["ناوچەی تاریکی ڕەها (Abyssal)", "ناوچەی ڕووناکی خۆر", "ناوچەی تەمومژاوی", "ناوچەی سەرەکی"], correctIndex: 0 },
+                { id: 'q_o4', topic: 'سیستەمی ژینگەیی زەریاکان', text: "کام زیندەوەرە مایکرۆسکۆپیانە زیاتر لە نیوەی ئۆکسجینی زەوی بەرهەم دەهێنن؟", options: ["فیتۆپلانکتۆن (Phytoplankton)", "قەوزەی دەریا", "مەرجانەکان", "قەندیل دەریایی"], correctIndex: 0 },
+                { id: 'q_o5', topic: 'زیندەوەرە گەورەکان', text: "گەورەترین گیانداری سەر زەوی چییە کە لە زەریادا دەژی؟", options: ["نەهەنگی شین (Blue Whale)", "مێگالۆدۆن", "کالاماری زەبەلاح", "قرشی سپی گەورە"], correctIndex: 0 }
+            ],
+            climate: [
+                { id: 'q_cl1', topic: 'تیشکی خۆر', text: "کام ناوچەی ئاووهەوا زۆرترین و بەردەوامترین ڕووناکی ڕاستەوخۆی خۆر وەردەگرێت؟", options: ["کەمەرەیی / ناوچەی گەرمەکان", "مامناوەند", "جەمسەری", "ژێر جەمسەری"], correctIndex: 0 },
+                { id: 'q_cl2', topic: 'ژینگەی بیابانەکان', text: "چی وشکیی ناوچە بیابانییەکان دیاری دەکات؟", options: ["ڕێژەی زۆر کەمی بارانبارینی ساڵانە", "خێرایی بەرزی با", "نەبوونی ژیانی ڕووەکی", "تەنها سەرمای زۆر"], correctIndex: 0 },
+                { id: 'q_cl3', topic: 'دارستانە چڕەکان', text: "کام دارستان بە دارستانە هەمیشە سەوزە سنەوبەرییەکان ناسراوە؟", options: ["تایگا (Taiga)", "تۆندرا", "ساڤانا", "دەشتاییەکان"], correctIndex: 0 },
+                { id: 'q_cl4', topic: 'بەستەڵەک', text: "خاکی بەستووی هەمیشەیی لە جەمسەرەکاندا بە چی دەوترێت؟", options: ["بەستەڵەکی هەمیشەیی (Permafrost)", "کڵاوی سەهۆڵی", "شەختە", "بەردی بنەڕەتی"], correctIndex: 0 },
+                { id: 'q_cl5', topic: 'بیابانە ساردەکان', text: "کام کیشوەر بە تەواوی وەک بیابانێکی سارد پۆلێن دەکرێت؟", options: ["ئەنتارکتیکا (Antarctica)", "گرینلاند", "ئوسترالیا", "سیبیریا"], correctIndex: 0 }
+            ]
+        };
+
+        const state = {
+            view: 'teacher',          // 'teacher', 'projector', 'student'
+            phase: 'auth',            // 'auth', 'setup', 'lobby', 'live', 'ended'
+            teacherUser: null,        // Logged in user Gmail address
+            selectedTheme: 'city',    // 'city', 'mountain', 'river', 'space', 'ocean', 'climate'
+            checkpoints: [],
+            questions: [],
+            customSlides: [           // Custom Kurdish slides preloaded
+                { title: "بەخێربێن بۆ گەشتی زانستی", content: "ئەمڕۆ گەشتێکی مێژوویی و پەروەردەیی گەورە ئەنجام دەدەین. پێکەوە کاربکەن، زانیارییەکان تاوتوێ بکەن و تیمی خۆتان ببەنە سەرکەوتن!" },
+                { title: "چەمکە بنەڕەتییەکان", content: "بیرتان بێت: بەرزاییە تۆپۆگرافییەکان، پلێتە تەکتۆنییەکان، و هێزی کێشکردن کاریگەرییان لەسەر هەموو خاڵەکان هەیە." }
+            ],
+            googleSlidesUrl: "",      // PPTX / Google slides raw or embed URL
+            activeSlideIndex: 0,      // Slide index during presentations
+            isCompetitionView: false, // If false, displays PPTX / Presentation slides. If true, displays live map game!
+            lobbyCode: "",            // Dynamic synced session code
+            joinedTeams: [],          // Teams joined
+            currentQuestionIndex: 0,
+            questionTimer: { remaining: 15, duration: 15, interval: null },
+            answersReceived: {},      // Team ID -> chosen answers
+            activeMapInstance: null,  // Leaflet map object
+            activeMarkers: {},
+        };
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const joinCode = urlParams.get('join');
+            const projCode = urlParams.get('projector');
+
+            if (joinCode) {
+                state.view = 'student';
+                state.lobbyCode = joinCode.toUpperCase();
+                state.phase = 'lobby';
+                document.getElementById('nav-mode-indicator').innerText = "ناوەندی قوتابی";
+                connectToSupabaseSession(state.lobbyCode);
+            } else if (projCode) {
+                state.view = 'projector';
+                state.lobbyCode = projCode.toUpperCase();
+                state.phase = 'lobby';
+                document.getElementById('nav-mode-indicator').innerText = "شاشەی پڕۆجێکتۆری پۆل";
+                connectToSupabaseSession(state.lobbyCode);
+            } else {
+                renderApp();
+            }
+        };
+
+        function switchSystemView(targetView) {
+            state.view = targetView;
+            if (targetView === 'teacher') {
+                document.getElementById('nav-mode-indicator').innerText = "کۆنسۆڵی چاودێری مامۆستا";
+            } else if (targetView === 'projector') {
+                document.getElementById('nav-mode-indicator').innerText = "شاشەی پڕۆجێکتۆری پۆل";
+            } else {
+                document.getElementById('nav-mode-indicator').innerText = "ناوەندی قوتابی";
+            }
+            renderApp();
+        }
+
+        function triggerToastNotification(msg) {
+            const toast = document.getElementById('custom-toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        function triggerEmailCodeRequest() {
+            const emailInput = document.getElementById('auth-gmail-input');
+            if (!emailInput || !emailInput.value.includes('@')) {
+                triggerToastNotification("تکایە ئیمەیڵێکی دروستی جیامێڵ بنووسە.");
+                return;
+            }
+            const gmailAddress = emailInput.value.trim();
+            
+            // Generate robust simulated code
+            const secureCode = Math.floor(100000 + Math.random() * 900000);
+            localStorage.setItem('LJ_VERIFY_CODE', secureCode);
+            localStorage.setItem('LJ_VERIFY_EMAIL', gmailAddress);
+
+            document.getElementById('simulated-recipient').innerText = gmailAddress;
+            document.getElementById('simulated-code').innerText = secureCode;
+            document.getElementById('email-verification-modal').classList.remove('hidden');
+
+            document.getElementById('pre-verify-section').classList.add('hidden');
+            document.getElementById('post-verify-section').classList.remove('hidden');
+        }
+
+        function verifySentCode() {
+            const enteredCode = document.getElementById('auth-code-input').value.trim();
+            const correctCode = localStorage.getItem('LJ_VERIFY_CODE');
+
+            if (enteredCode === correctCode) {
+                state.teacherUser = localStorage.getItem('LJ_VERIFY_EMAIL');
+                state.phase = 'setup';
+                loadThemePreset('city');
+                triggerToastNotification("بە سەرکەوتوویی چوومە ژوورەوە!");
+            } else {
+                triggerToastNotification("کۆدی داخڵکراو هەڵەیە. تکایە دووبارە تاقیبکەرەوە.");
+            }
+        }
+
+        function closeEmailVerificationModal() {
+            document.getElementById('email-verification-modal').classList.add('hidden');
+        }
+
+        function loadThemePreset(themeKey) {
+            state.selectedTheme = themeKey;
+            
+            let defaultStops = [];
+            if (themeKey === 'city') {
+                defaultStops = [
+                    { name: "قەڵای هەولێر", lat: 36.1911, lng: 44.0092, fact: "یەکێکە لە کۆنترین قەڵا دێرینەکانی جیهان کە مرۆڤ بەردەوام ژیانی تێدا بەسەر بردووە." },
+                    { name: "گەرووی بۆسفۆر - ئەستەنبوڵ", lat: 41.0082, lng: 28.9784, fact: "ئەو دەروازە سەرنجڕاکێشەی کە کیشوەری ئەوروپا و ئاسیا لەیەکتر جیا دەکاتەوە." },
+                    { name: "ڤییەنا", lat: 48.2082, lng: 16.3738, fact: "پایتەختی مۆسیقای کلاسیک و هونەر و تەلارسازی دێرین." },
+                    { name: "کۆلۆسیۆمی ڕۆما", lat: 41.9028, lng: 12.4964, fact: "شانۆگەرییە زەبەلاحەکەی ئیمپراتۆریەتی ڕۆمان بۆ جەنگی گڵادیاتۆرەکان." },
+                    { name: "ڕووباری سێن - پاریس", lat: 48.8566, lng: 2.3522, fact: "دڵی مێژوویی و ناسنامەی کلتووری شاری پاریس." }
+                ];
+            } else if (themeKey === 'mountain') {
+                defaultStops = [
+                    { name: "چیای هەڵگورد", lat: 36.7333, lng: 44.75, fact: "بەرزترین لوتکە چیای باشووری کوردستان و عێراق." },
+                    { name: "چیای ئارارات", lat: 39.7019, lng: 44.2983, fact: "چیایەکی ئەفسانەیی و دێرین کە بە شوێنی نیشتنەوەی کەشتیەکەی نوح دادەنرێت." },
+                    { name: "چیای کیلیمانجارۆ", lat: -3.0674, lng: 37.3556, fact: "بەرزترین لوتکەی گڕکانی بەرز لە کیشوەری ئەفریقادا." },
+                    { name: "لوتکەی ئێڤرێست", lat: 27.9881, lng: 86.9250, fact: "بەرزترین خاڵی سەر زەوی کە دەکەوێتە زنجیرەچیای هیمالایا." }
+                ];
+            } else if (themeKey === 'river') {
+                defaultStops = [
+                    { name: "ڕووباری زێی گەورە", lat: 36.85, lng: 44.4, fact: "ڕووبارێکی خێرا و گرنگ کە لە ناوچە شاخاوییەکانی تورکیاوە سەرچاوە دەگرێت." },
+                    { name: "دیجلە لە بەغداد", lat: 33.3128, lng: 44.3615, fact: "لانکەی شارستانیەتە کۆنەکانی میسۆپۆتامیا لە دەشتە بەپیتەکاندا." },
+                    { name: "شەتولعەرەب", lat: 31.0012, lng: 47.4421, fact: "خاڵی کۆتایی و یەکگرتنی هەردوو ڕووباری مێژوویی دیجلە و فوڕات لە باشوور." }
+                ];
+            } else if (themeKey === 'space') {
+                defaultStops = [
+                    { name: "خولگەی عەتارد", lat: 10.0, lng: 10.0, fact: "نزیکترین و گەرمترین هەسارە لە خۆری گەشەوە." },
+                    { name: "مەریخ", lat: 20.0, lng: 25.0, fact: "هەسارەی سوور بەهۆی بوونی ڕێژەیەکی زۆر لە ئۆکسیدی ئاسن لەسەر ڕووەکەی." },
+                    { name: "موشتەری", lat: -15.0, lng: 45.0, fact: "گەورەترین هەسارەی گازی لە کۆمەڵەی خۆردا لەگەڵ زریانە کۆنەکەی." }
+                ];
+            } else if (themeKey === 'ocean') {
+                defaultStops = [
+                    { name: "ناوچەی ڕووناکی زەریا", lat: 5.0, lng: -20.0, fact: "ناوچەی یەکەمی زەریاکان کە زۆرترین ڕووناکی لێیە و ماسیەکان لێی دەژین." },
+                    { name: "قووڵکەی ماریانا", lat: 11.3493, lng: 142.1996, fact: "نزمترین و قووڵترین خاڵ لەسەر توێکڵی زەوی لەژێر ئاوی زەریادا." }
+                ];
+            } else {
+                defaultStops = [
+                    { name: "ناوچەی کەمەرەیی", lat: -1.0, lng: -60.0, fact: "ڕێژەیەکی زۆری بارانبارین و چڕی دارستانە هەمیشە سەوزەکان." },
+                    { name: "بیابانی گەورەی سەحرا", lat: 23.0, lng: 12.0, fact: "کەمترین ڕێژەی بارانبارینی ساڵانە لەگەڵ بەرزترین پلەی گەرمی بیابانی." },
+                    { name: "بەستەڵەکی باشوور", lat: -80.0, lng: 0.0, fact: "بیابانی ساردی هەمیشەیی کە چڕترین سەهۆڵبەندانی مێژوویی جیهانی لێیە." }
+                ];
+            }
+
+            state.checkpoints = defaultStops;
+            state.questions = PRELOADED_QUESTION_BANK[themeKey] || [];
+            renderApp();
+        }
+
+        async function publishSessionToSupabase() {
+            if (!supabaseClient) return;
+            const code = state.lobbyCode || "LOB_" + Math.floor(1000 + Math.random() * 9000);
+            state.lobbyCode = code;
+
+            const snapshotObj = {
+                phase: state.phase,
+                selectedTheme: state.selectedTheme,
+                checkpoints: state.checkpoints,
+                currentQuestionIndex: state.currentQuestionIndex,
+                questionTimer: state.questionTimer.remaining,
+                answersReceived: state.answersReceived,
+                customSlides: state.customSlides,
+                activeSlideIndex: state.activeSlideIndex,
+                isCompetitionView: state.isCompetitionView,
+                joinedTeams: state.joinedTeams,
+                googleSlidesUrl: state.googleSlidesUrl
+            };
+
+            await supabaseClient.from('lj_sessions').upsert({
+                code: code,
+                snapshot: snapshotObj,
+                updated_at: new Date().toISOString()
+            });
+        }
+
+        function connectToSupabaseSession(sessionCode) {
+            if (!supabaseClient) return;
+            
+            supabaseClient
+                .channel('realtime_session_sync')
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'lj_sessions',
+                    filter: `code=eq.${sessionCode}`
+                }, payload => {
+                    if (payload.new && payload.new.snapshot) {
+                        const snap = payload.new.snapshot;
+                        state.phase = snap.phase;
+                        state.selectedTheme = snap.selectedTheme;
+                        state.checkpoints = snap.checkpoints;
+                        state.currentQuestionIndex = snap.currentQuestionIndex;
+                        state.questionTimer.remaining = snap.questionTimer;
+                        state.answersReceived = snap.answersReceived;
+                        state.customSlides = snap.customSlides;
+                        state.activeSlideIndex = snap.activeSlideIndex;
+                        state.isCompetitionView = snap.isCompetitionView;
+                        state.joinedTeams = snap.joinedTeams;
+                        state.googleSlidesUrl = snap.googleSlidesUrl;
+                        
+                        renderApp();
+                    }
+                })
+                .subscribe();
+        }
+
+        function renderApp() {
+            const container = document.getElementById('main-content');
+            
+            if (state.phase === 'auth') {
+                container.innerHTML = getAuthHTML();
+            } else if (state.phase === 'setup') {
+                container.innerHTML = getSetupHTML();
+            } else if (state.phase === 'lobby') {
+                container.innerHTML = getLobbyHTML();
+                generateLobbyQRCode();
+            } else if (state.phase === 'live') {
+                container.innerHTML = getLiveHTML();
+                initLeafletMapInstance();
+            } else if (state.phase === 'ended') {
+                container.innerHTML = getEndedHTML();
+            }
+        }
+
+        function getAuthHTML() {
+            return `
+            <div class="flex-1 flex items-center justify-center p-6 text-right">
+                <div class="bg-pine-900 border border-pine-800 rounded-3xl w-full max-w-lg p-8 shadow-2xl relative space-y-6">
+                    <div class="text-center space-y-2">
+                        <span class="bg-gold-500/10 text-gold-300 font-mono text-xs px-4 py-1.5 rounded-full border border-gold-500/20 uppercase tracking-widest font-bold">پەڕەی دەستپێکی مامۆستایان</span>
+                        <h2 class="font-display font-black text-2xl text-white pt-2">خۆتۆمارکردن لە ڕێگەی جیامێڵ</h2>
+                        <p class="text-sm text-gray-400 max-w-md mx-auto">ئەکاونتی مامۆستایەتیەکەت بە سەلامەتی ڕێکبخە لە ڕێگەی ناردنی کۆدی دڵنیایی بۆ جیامێڵەکەت.</p>
+                    </div>
+
+                    <!-- Step 1: Gmail Input -->
+                    <div id="pre-verify-section" class="space-y-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold uppercase tracking-wider text-gold-300">جیامێڵی مامۆستا</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-envelope absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="email" id="auth-gmail-input" placeholder="example@gmail.com" class="w-full bg-pine-950 border border-pine-800 rounded-xl pr-11 pl-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gold-500 text-sm font-bold text-left" dir="ltr">
+                            </div>
+                        </div>
+                        <button onclick="triggerEmailCodeRequest()" class="w-full bg-gold-500 hover:bg-gold-600 text-pine-950 font-black py-4 rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-paper-plane text-sm"></i>
+                            <span>ناردنی کۆدی سەلماندن</span>
+                        </button>
+                    </div>
+
+                    <!-- Step 2: Code Verification -->
+                    <div id="post-verify-section" class="hidden space-y-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold uppercase tracking-wider text-gold-300">کۆدی ٦ ژمارەیی داخڵ بکە</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-key absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="text" id="auth-code-input" placeholder="******" class="w-full bg-pine-950 border border-pine-800 rounded-xl pr-11 pl-4 py-3 text-white tracking-widest text-center placeholder-gray-500 focus:outline-none focus:border-gold-500 text-sm font-black">
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="triggerEmailCodeRequest()" class="flex-1 bg-pine-950 hover:bg-pine-850 text-gray-400 border border-pine-800 py-3 rounded-xl text-xs font-bold transition">دووبارە ناردنەوە</button>
+                            <button onclick="verifySentCode()" class="flex-1 bg-gold-500 hover:bg-gold-600 text-pine-950 py-3 rounded-xl text-xs font-bold transition shadow-md">سەلماندنی کۆد</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function getSetupHTML() {
+            return `
+            <div class="flex-1 flex flex-col md:flex-row p-6 gap-6 min-h-0 text-right">
+                <!-- Preset Themes Panel -->
+                <div class="w-full md:w-80 space-y-4 flex-shrink-0">
+                    <div class="bg-pine-900 border border-pine-800 rounded-2xl p-5 space-y-4 shadow-xl">
+                        <h3 class="font-display font-black text-lg text-white">گەشتە فێربوونییەکان</h3>
+                        <p class="text-xs text-gray-400 leading-relaxed">ڕێڕەوی زانستی هەڵبژێرە، سلایدی پێشکەشکردن ئامادە بکە، و نەخشەی زیندوو بنێرە بۆ پڕۆجێکتۆری پۆلەکە.</p>
+                    </div>
+
+                    <!-- Presets Selection List -->
+                    <div class="bg-pine-900 border border-pine-800 rounded-2xl p-5 space-y-3 shadow-xl">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-gold-300">تەوەری سەرەکی گەشتەکە</h4>
+                        <div class="grid grid-cols-1 gap-2">
+                            <button onclick="loadThemePreset('city')" class="w-full text-right p-3.5 rounded-xl border ${state.selectedTheme === 'city' ? 'bg-pine-800 border-gold-500 text-white' : 'bg-pine-950 border-pine-850 text-gray-400 hover:text-white'} transition flex items-center justify-between">
+                                <span class="font-bold text-xs flex items-center gap-2"><i class="fa-solid fa-city text-xs text-gold-300"></i> گەشتی شارەکان</span>
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
+                            <button onclick="loadThemePreset('mountain')" class="w-full text-right p-3.5 rounded-xl border ${state.selectedTheme === 'mountain' ? 'bg-pine-800 border-gold-500 text-white' : 'bg-pine-950 border-pine-850 text-gray-400 hover:text-white'} transition flex items-center justify-between">
+                                <span class="font-bold text-xs flex items-center gap-2"><i class="fa-solid fa-mountain text-xs text-gold-300"></i> سەرکەوتن بەسەر چیاکان</span>
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
+                            <button onclick="loadThemePreset('river')" class="w-full text-right p-3.5 rounded-xl border ${state.selectedTheme === 'river' ? 'bg-pine-800 border-gold-500 text-white' : 'bg-pine-950 border-pine-850 text-gray-400 hover:text-white'} transition flex items-center justify-between">
+                                <span class="font-bold text-xs flex items-center gap-2"><i class="fa-solid fa-water text-xs text-gold-300"></i> گەشتی ڕووبارەکان</span>
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
+                            <button onclick="loadThemePreset('space')" class="w-full text-right p-3.5 rounded-xl border ${state.selectedTheme === 'space' ? 'bg-pine-800 border-gold-500 text-white' : 'bg-pine-950 border-pine-850 text-gray-400 hover:text-white'} transition flex items-center justify-between">
+                                <span class="font-bold text-xs flex items-center gap-2"><i class="fa-solid fa-user-astronaut text-xs text-gold-300"></i> دۆزینەوەی گەردوون</span>
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
+                            <button onclick="loadThemePreset('ocean')" class="w-full text-right p-3.5 rounded-xl border ${state.selectedTheme === 'ocean' ? 'bg-pine-800 border-gold-500 text-white' : 'bg-pine-950 border-pine-850 text-gray-400 hover:text-white'} transition flex items-center justify-between">
+                                <span class="font-bold text-xs flex items-center gap-2"><i class="fa-solid fa-fish text-xs text-gold-300"></i> قووڵایی زەریاکان</span>
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
+                            <button onclick="loadThemePreset('climate')" class="w-full text-right p-3.5 rounded-xl border ${state.selectedTheme === 'climate' ? 'bg-pine-800 border-gold-500 text-white' : 'bg-pine-950 border-pine-850 text-gray-400 hover:text-white'} transition flex items-center justify-between">
+                                <span class="font-bold text-xs flex items-center gap-2"><i class="fa-solid fa-temperature-low text-xs text-gold-300"></i> ناوچەکانی کەشوهەوا</span>
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button onclick="initializeLobbySession()" class="w-full bg-gold-500 hover:bg-gold-600 text-pine-950 font-black py-4.5 rounded-2xl shadow-xl flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-circle-play text-lg animate-pulse"></i>
+                        <span>دەستپێکردنی کۆرسی پۆل</span>
+                    </button>
+                </div>
+
+                <!-- Setup Workspaces -->
+                <div class="flex-1 bg-pine-900 border border-pine-800 rounded-3xl p-6 shadow-2xl flex flex-col min-h-0 space-y-6 overflow-y-auto custom-scrollbar">
+                    <div class="flex border-b border-pine-850 gap-6">
+                        <button class="pb-3 border-b-2 border-gold-500 text-white font-bold text-sm">وێستگەکانی سەر نەخشە</button>
+                        <button class="pb-3 border-b-2 border-transparent text-gray-400 font-bold text-sm hover:text-white transition" onclick="openSlideSetupModal()">سلایدەکانی پێشکەشکردن (PowerPoint)</button>
+                    </div>
+
+                    <!-- Checkpoint Stops Setup Panel -->
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Existing List -->
+                            <div class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pl-2">
+                                ${state.checkpoints.map((stop, i) => `
+                                    <div class="bg-pine-950 border border-pine-850 p-4 rounded-2xl flex items-start gap-3 relative shadow-inner">
+                                        <div class="bg-gold-500 text-pine-950 text-xs font-black w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">${i + 1}</div>
+                                        <div class="space-y-1 flex-1">
+                                            <h5 class="font-black text-xs text-white">${stop.name}</h5>
+                                            <p class="text-xs text-gray-400 leading-relaxed">${stop.fact}</p>
+                                            <p class="text-[10px] text-gold-300 font-mono tracking-wider">${stop.lat.toFixed(4)}, ${stop.lng.toFixed(4)}</p>
+                                        </div>
+                                        <button onclick="removeCheckpointIndex(${i})" class="text-gray-500 hover:text-red-400 transition"><i class="fa-solid fa-trash-can text-sm"></i></button>
+                                    </div>
+                                `).join('')}
+                            </div>
+
+                            <!-- Add Stop Form -->
+                            <div class="bg-pine-950 border border-pine-850 p-5 rounded-2xl space-y-3 shadow-lg">
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-gold-300"><i class="fa-solid fa-circle-plus"></i> وێستگەیەکی نوێ زیاد بکە</h4>
+                                <div class="space-y-2 text-xs">
+                                    <div class="space-y-1">
+                                        <label class="text-gray-400">ناوی وێستگە</label>
+                                        <input type="text" id="new-stop-name" placeholder="بۆ نموونە: قەڵای خانزاد" class="w-full bg-pine-900 border border-pine-800 rounded-lg p-2.5 text-white">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div class="space-y-1">
+                                            <label class="text-gray-400">هێڵی پانی (Latitude)</label>
+                                            <input type="number" step="0.00001" id="new-stop-lat" placeholder="36.21" class="w-full bg-pine-900 border border-pine-800 rounded-lg p-2.5 text-white text-left font-mono">
+                                        </div>
+                                        <div class="space-y-1">
+                                            <label class="text-gray-400">هێڵی درێژی (Longitude)</label>
+                                            <input type="number" step="0.00001" id="new-stop-lng" placeholder="44.12" class="w-full bg-pine-900 border border-pine-800 rounded-lg p-2.5 text-white text-left font-mono">
+                                        </div>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-gray-400">ڕاستی مێژوویی / زانیاری فێربوون</label>
+                                        <textarea id="new-stop-fact" placeholder="سەرنج و زانیاری کورت لەسەر ئەم وێستگەیە بنووسە..." class="w-full bg-pine-900 border border-pine-800 rounded-lg p-2.5 text-white h-16 resize-none"></textarea>
+                                    </div>
+                                    <button onclick="createNewCheckpoint()" class="w-full bg-pine-800 hover:bg-pine-700 text-gold-300 font-bold py-2.5 rounded-lg border border-gold-500/20 transition">زیادکردنی وێستگە</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Kurdish Questions List Panel -->
+                    <div class="space-y-4 pt-4 border-t border-pine-850">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-gold-300">بانکی پرسیارەکانی ئەم خولە</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pl-2">
+                                ${state.questions.map((q, idx) => `
+                                    <div class="bg-pine-950 border border-pine-850 p-4 rounded-2xl flex items-start gap-3 relative shadow-inner">
+                                        <div class="space-y-1.5 flex-1">
+                                            <div class="flex items-center justify-between">
+                                                <span class="bg-gold-500/10 text-gold-300 border border-gold-500/20 text-[10px] font-bold px-2 py-0.5 rounded-md">${q.topic}</span>
+                                                <button onclick="removeQuestionIndex(${idx})" class="text-gray-500 hover:text-red-400 transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                                            </div>
+                                            <p class="font-black text-xs text-white leading-relaxed">${q.text}</p>
+                                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-400">
+                                                ${q.options.map((opt, i) => `
+                                                    <div class="${i === q.correctIndex ? 'text-emerald-400 font-bold' : ''}">${i === q.correctIndex ? '✓' : '•'} ${opt}</div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+
+                            <!-- Add Question Form -->
+                            <div class="bg-pine-950 border border-pine-850 p-5 rounded-2xl space-y-3 shadow-lg">
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-gold-300"><i class="fa-solid fa-question"></i> پرسیارێکی نوێ دروست بکە</h4>
+                                <div class="space-y-2 text-xs">
+                                    <div class="space-y-1">
+                                        <label class="text-gray-400">دەقی پرسیارەکە بە کوردی</label>
+                                        <input type="text" id="new-q-text-ku" placeholder="بۆ نموونە: ناوی گەورەترین زەریا چییە؟" class="w-full bg-pine-900 border border-pine-800 rounded-lg p-2.5 text-white">
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-gray-400">تاگی بابەت / بەش</label>
+                                        <input type="text" id="new-q-topic" placeholder="زانستی سروشتی" class="w-full bg-pine-900 border border-pine-800 rounded-lg p-2.5 text-white">
+                                    </div>
+                                    
+                                    <div class="space-y-1.5">
+                                        <label class="text-gray-400">هەڵبژاردنەکان (دیاری بکە کامەیان ڕاستە)</label>
+                                        <div class="grid grid-cols-1 gap-2">
+                                            <div class="flex items-center gap-2">
+                                                <input type="radio" name="new-q-correct" value="0" checked class="accent-gold-500">
+                                                <input type="text" id="opt-0" placeholder="وەڵامی یەکەم" class="flex-1 bg-pine-900 border border-pine-800 rounded-lg p-2 text-white">
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <input type="radio" name="new-q-correct" value="1" class="accent-gold-500">
+                                                <input type="text" id="opt-1" placeholder="وەڵامی دووەم" class="flex-1 bg-pine-900 border border-pine-800 rounded-lg p-2 text-white">
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <input type="radio" name="new-q-correct" value="2" class="accent-gold-500">
+                                                <input type="text" id="opt-2" placeholder="وەڵامی سێیەم (ئارەزوومەندانە)" class="flex-1 bg-pine-900 border border-pine-800 rounded-lg p-2 text-white">
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <input type="radio" name="new-q-correct" value="3" class="accent-gold-500">
+                                                <input type="text" id="opt-3" placeholder="وەڵامی چوارەم (ئارەزوومەندانە)" class="flex-1 bg-pine-900 border border-pine-800 rounded-lg p-2 text-white">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button onclick="createNewQuestionPoolItem()" class="w-full bg-pine-800 hover:bg-pine-700 text-gold-300 font-bold py-2.5 rounded-lg border border-gold-500/20 transition">زیادکردنی پرسیار</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function openSlideSetupModal() {
+            const modal = document.getElementById('presentation-setup-modal');
+            modal.innerHTML = `
+            <div class="bg-pine-900 border border-pine-700 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh] text-right">
+                <div class="bg-gold-500 p-5 text-pine-950 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-file-powerpoint text-xl"></i>
+                        <span class="font-display font-black text-lg">بۆردی بەڕێوەبردنی سلایدەکانی وانەوتنەوە (PPTX / Google Slides)</span>
+                    </div>
+                    <button onclick="closeSlideSetupModal()" class="text-pine-950 hover:text-black"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
+                    <p class="text-xs text-gray-400 leading-relaxed">دەتوانیت بەستەری هاوبەشکردنی سلایدەکانی Google Slides یان PowerPoint (.pptx) لێرەدا پەیست بکەیت بۆ ئەوەی ڕاستەوخۆ لەسەر شاشەی پڕۆجێکتۆری پۆلەکە پیشانی قوتابیانی بدەیت و بە مۆبایلەکەت لایەنی لاپەڕەکان بگوێزیتەوە.</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- PowerPoint Slides Integration -->
+                        <div class="bg-pine-950 p-5 rounded-2xl border border-pine-800 space-y-4">
+                            <h4 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-brands fa-slideshare text-gold-300"></i> بەستەری سلاید</h4>
+                            <div class="space-y-2 text-xs">
+                                <label class="text-gray-400">هاوبەشکردنی بەستەری PPTX / Google Slides</label>
+                                <input type="text" id="gslide-url-input" value="${state.googleSlidesUrl}" placeholder="https://docs.google.com/presentation/d/.../embed" class="w-full bg-pine-900 border border-pine-800 rounded-lg p-3 text-white text-left font-mono" dir="ltr">
+                                <button onclick="saveGoogleSlidesUrl()" class="w-full bg-gold-500 text-pine-950 font-black py-2.5 rounded-lg">بارکردنی دەستەی سلایدەکان</button>
+                            </div>
+                        </div>
+
+                        <!-- Custom Interactive Slide Builder -->
+                        <div class="bg-pine-950 p-5 rounded-2xl border border-pine-800 space-y-4">
+                            <h4 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-file-invoice text-gold-300"></i> دروستکردنی سلایدی تایبەت</h4>
+                            <div class="space-y-2 text-xs">
+                                <input type="text" id="custom-slide-title" placeholder="ناونیشانی سلاید" class="w-full bg-pine-900 border border-pine-800 rounded-lg p-2.5 text-white">
+                                <textarea id="custom-slide-content" placeholder="ناوەرۆکی بابەت" class="w-full bg-pine-900 border border-pine-800 rounded-lg p-2.5 text-white h-24 resize-none"></textarea>
+                                <button onclick="addCustomCreatedSlide()" class="w-full bg-pine-850 text-gold-300 font-bold py-2.5 rounded-lg border border-gold-500/10">زیادکردنی سلاید</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide Previews -->
+                    <div class="space-y-3">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-gold-300">لیستی لاپەڕەکانی سلایدەکان لە ناو وانەکەدا</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            ${state.customSlides.map((slide, i) => `
+                                <div class="bg-pine-950 border border-pine-850 p-4 rounded-xl flex items-start justify-between">
+                                    <div class="space-y-1">
+                                        <h5 class="font-bold text-xs text-white">${i + 1}. ${slide.title}</h5>
+                                        <p class="text-xs text-gray-400 line-clamp-2">${slide.content}</p>
+                                    </div>
+                                    <button onclick="removeCustomSlideIndex(${i})" class="text-gray-500 hover:text-red-400 transition"><i class="fa-solid fa-trash-can text-sm"></i></button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            modal.classList.remove('hidden');
+        }
+
+        function closeSlideSetupModal() {
+            document.getElementById('presentation-setup-modal').classList.add('hidden');
+        }
+
+        function saveGoogleSlidesUrl() {
+            const url = document.getElementById('gslide-url-input').value.trim();
+            state.googleSlidesUrl = url;
+            triggerToastNotification("سلایدەکانی وانەکە بە سەرکەوتوویی جێگیرکران!");
+            closeSlideSetupModal();
+        }
+
+        function addCustomCreatedSlide() {
+            const title = document.getElementById('custom-slide-title').value.trim();
+            const content = document.getElementById('custom-slide-content').value.trim();
+            if (!title || !content) return;
+
+            state.customSlides.push({ title, content });
+            openSlideSetupModal();
+        }
+
+        function removeCustomSlideIndex(index) {
+            state.customSlides.splice(index, 1);
+            openSlideSetupModal();
+        }
+
+        function createNewCheckpoint() {
+            const name = document.getElementById('new-stop-name').value.trim();
+            const lat = parseFloat(document.getElementById('new-stop-lat').value);
+            const lng = parseFloat(document.getElementById('new-stop-lng').value);
+            const fact = document.getElementById('new-stop-fact').value.trim();
+
+            if (!name || isNaN(lat) || isNaN(lng)) {
+                triggerToastNotification("تکایە هەموو زانیارییەکان بە دروستی داخڵ بکە.");
+                return;
+            }
+
+            state.checkpoints.push({ name, lat, lng, fact });
+            renderApp();
+        }
+
+        function removeCheckpointIndex(index) {
+            state.checkpoints.splice(index, 1);
+            renderApp();
+        }
+
+        function createNewQuestionPoolItem() {
+            const textKu = document.getElementById('new-q-text-ku').value.trim();
+            const topic = document.getElementById('new-q-topic').value.trim() || "تەوەری گشتی";
+            const correctRadio = document.querySelector('input[name="new-q-correct"]:checked');
+            const correctIndex = correctRadio ? parseInt(correctRadio.value) : 0;
+
+            const opts = [
+                document.getElementById('opt-0').value.trim(),
+                document.getElementById('opt-1').value.trim(),
+                document.getElementById('opt-2').value.trim(),
+                document.getElementById('opt-3').value.trim(),
+            ].filter(v => v !== "");
+
+            if (!textKu || opts.length < 2) {
+                triggerToastNotification("تکایە پرسیارێک داخڵ بکە کە بەلایەنی کەمەوە ٢ هەڵبژاردنی هەبێت.");
+                return;
+            }
+
+            state.questions.push({
+                id: 'custom_' + Date.now(),
+                topic: topic,
+                text: textKu,
+                options: opts,
+                correctIndex: correctIndex
+            });
+
+            renderApp();
+        }
+
+        function removeQuestionIndex(index) {
+            state.questions.splice(index, 1);
+            renderApp();
+        }
+
+        function initializeLobbySession() {
+            state.lobbyCode = "EXP_" + Math.floor(100000 + Math.random() * 900000);
+            state.phase = 'lobby';
+            publishSessionToSupabase();
+            renderApp();
+            
+            if (supabaseClient) {
+                setInterval(async () => {
+                    const { data, error } = await supabaseClient
+                        .from('lj_sessions')
+                        .select('snapshot')
+                        .eq('code', state.lobbyCode)
+                        .maybeSingle();
+                    if (data && data.snapshot && data.snapshot.joinedTeams) {
+                        state.joinedTeams = data.snapshot.joinedTeams;
+                        renderLobbyTeamsList();
+                    }
+                }, 3000);
+            }
+        }
+
+        function copyProjectorLinkToClipboard() {
+            const projUrl = `${window.location.origin}${window.location.pathname}?projector=${state.lobbyCode}`;
+            
+            // Native robust fallback copy for nested browser frames
+            const el = document.createElement('textarea');
+            el.value = projUrl;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            
+            triggerToastNotification("بەستەری پڕۆجێکتۆر کۆپی کرا! ئێستا لە وێبگەڕێکی نوێدا بیکەرەوە.");
+        }
+
+        function getLobbyHTML() {
+            const joinUrl = `${window.location.origin}${window.location.pathname}?join=${state.lobbyCode}`;
+            const projUrl = `${window.location.origin}${window.location.pathname}?projector=${state.lobbyCode}`;
+
+            return `
+            <div class="flex-1 flex flex-col md:flex-row p-6 gap-6 min-h-0 text-right">
+                <!-- Share QR and URLs Dashboard -->
+                <div class="w-full md:w-96 bg-pine-900 border border-pine-800 rounded-3xl p-6 shadow-2xl flex flex-col items-center justify-center text-center space-y-4">
+                    <span class="bg-gold-500/10 text-gold-300 font-mono text-xs px-4 py-1.5 rounded-full border border-gold-500/20 uppercase tracking-widest font-bold">کۆدی بەشداریکردن</span>
+                    <h3 class="font-display font-black text-2xl text-white pt-2">${state.lobbyCode}</h3>
+                    
+                    <div class="bg-white p-4 rounded-2xl shadow-lg border border-pine-850">
+                        <canvas id="lobby-qr-canvas" class="w-48 h-48"></canvas>
+                    </div>
+
+                    <div class="space-y-1 w-full text-right">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">بەستەری ڕاستەوخۆی قوتابیان</p>
+                        <p class="text-xs bg-pine-950 border border-pine-850 p-3 rounded-xl text-gold-300 select-all font-mono break-all text-left" dir="ltr">${joinUrl}</p>
+                    </div>
+
+                    <div class="space-y-2 w-full pt-2 border-t border-pine-850/40">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase">بەستەری جیاواز بۆ پڕۆجێکتۆر (لە شاشەی تر بیکەرەوە)</p>
+                        <button onclick="copyProjectorLinkToClipboard()" class="w-full bg-pine-950 hover:bg-pine-850 text-gold-300 text-xs border border-pine-800 rounded-xl p-3 flex items-center justify-center gap-2 font-bold transition">
+                            <i class="fa-solid fa-copy"></i>
+                            <span>کۆپی کردنی بەستەری پڕۆجێکتۆر</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Teams joined -->
+                <div class="flex-1 bg-pine-900 border border-pine-800 rounded-3xl p-6 shadow-2xl flex flex-col min-h-0 space-y-6">
+                    <div class="flex items-center justify-between flex-wrap gap-4">
+                        <div>
+                            <h3 class="font-display font-black text-xl text-white">گرووپە بەشداربووەکانی گەشتەکە</h3>
+                            <p class="text-xs text-gray-400">چاوەڕوانی قوتابیان دەکەین بۆ پەیوەندیکردن بە پۆلەوە...</p>
+                        </div>
+                        <button onclick="launchLiveCompetitionSession()" class="bg-gold-500 hover:bg-gold-600 text-pine-950 font-black px-6 py-3.5 rounded-2xl shadow-lg transition">
+                            <span>دەستپێکردنی پێشکەشکردن و کێبڕکێ</span>
+                        </button>
+                    </div>
+
+                    <!-- Teams List -->
+                    <div id="lobby-teams-list-container" class="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4 overflow-y-auto custom-scrollbar">
+                        <div class="col-span-full flex flex-col items-center justify-center p-8 text-gray-500 space-y-3">
+                            <i class="fa-solid fa-users text-4xl animate-pulse text-gold-500"></i>
+                            <p class="text-sm font-bold">بۆ دەستپێکردن دەتوانیت گرووپی تاقیکاری دروست بکەیت</p>
+                            <button onclick="addSimulatedLobbyTeam()" class="bg-pine-950 text-gold-300 border border-pine-800 px-5 py-2.5 rounded-xl text-xs hover:bg-pine-850 font-bold transition">دروستکردنی گرووپی تاقیکاری (Simulated)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function generateLobbyQRCode() {
+            setTimeout(() => {
+                const canvas = document.getElementById('lobby-qr-canvas');
+                if (canvas) {
+                    const joinUrl = `${window.location.origin}${window.location.pathname}?join=${state.lobbyCode}`;
+                    new QRious({
+                        element: canvas,
+                        value: joinUrl,
+                        size: 200,
+                        background: '#ffffff',
+                        foreground: '#0a1e17',
+                        level: 'H'
+                    });
+                }
+            }, 150);
+        }
+
+        function addSimulatedLobbyTeam() {
+            const teamNames = ["کۆمەڵەی هەڵگورد", "تیمی زاگرۆس", "دۆزەرەوەکانی دیجلە", "پارێزەرانی قەڵا", "فەلەکناسانی کوردی"];
+            const teamColors = ["#c9a24b", "#6f9b6e", "#b4553f", "#8fb3c9", "#ae8f6f"];
+            
+            const randomName = teamNames[Math.floor(Math.random() * teamNames.length)] + " " + Math.floor(Math.random()*100);
+            const randomColor = teamColors[state.joinedTeams.length % teamColors.length];
+            
+            state.joinedTeams.push({
+                id: "sim_" + Math.floor(Math.random()*10000),
+                name: randomName,
+                color: randomColor,
+                score: 0,
+                checkpointIndex: 0
+            });
+
+            publishSessionToSupabase();
+            renderLobbyTeamsList();
+        }
+
+        function renderLobbyTeamsList() {
+            const container = document.getElementById('lobby-teams-list-container');
+            if (!container) return;
+
+            if (state.joinedTeams.length === 0) {
+                container.innerHTML = `
+                <div class="col-span-full flex flex-col items-center justify-center p-8 text-gray-500 space-y-3">
+                    <i class="fa-solid fa-users text-4xl animate-pulse text-gold-500"></i>
+                    <p class="text-sm font-bold">بۆ دەستپێکردن دەتوانیت گرووپی تاقیکاری دروست بکەیت</p>
+                    <button onclick="addSimulatedLobbyTeam()" class="bg-pine-950 text-gold-300 border border-pine-800 px-5 py-2.5 rounded-xl text-xs hover:bg-pine-850 font-bold transition">دروستکردنی گرووپی تاقیکاری (Simulated)</button>
+                </div>`;
+                return;
+            }
+
+            container.innerHTML = state.joinedTeams.map(team => `
+                <div class="bg-pine-950 border border-pine-850 p-4 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 left-0 right-0 h-1.5" style="background-color: ${team.color}"></div>
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg text-pine-950 font-bold" style="background-color: ${team.color}">
+                        <i class="fa-solid fa-flag-checkered text-xs"></i>
+                    </div>
+                    <p class="font-bold text-xs text-white">${team.name}</p>
+                </div>
+            `).join('');
+        }
+
+        function launchLiveCompetitionSession() {
+            state.phase = 'live';
+            state.isCompetitionView = false;
+            state.activeSlideIndex = 0;
+            state.currentQuestionIndex = 0;
+            publishSessionToSupabase();
+            renderApp();
+        }
+
+        function getLiveHTML() {
+            if (state.view === 'teacher') {
+                return getTeacherLiveHTML();
+            } else if (state.view === 'projector') {
+                return getProjectorLiveHTML();
+            } else {
+                return getStudentLiveHTML();
+            }
+        }
+
+        function getTeacherLiveHTML() {
+            const currentSlide = state.customSlides[state.activeSlideIndex] || { title: "کۆتایی بەشی پێشکەشکردن", content: "پێشکەشکردنی بابەتەکە تەواو بوو. دەتوانیت ئێستا کێبڕکێی یارییەکە دەستپێبکەیت!" };
+            const q = state.questions[state.currentQuestionIndex] || { text: "هیچ پرسیارێک نییە", options: [], topic: "گشتی" };
+            
+            return `
+            <div class="flex-1 flex flex-col md:flex-row p-6 gap-6 min-h-0 text-right">
+                <!-- Remote Slides Controller Desk -->
+                <div class="w-full md:w-96 space-y-4 flex-shrink-0 flex flex-col min-h-0">
+                    
+                    <!-- View switcher: Present Slides vs Map Game -->
+                    <div class="bg-pine-900 border border-pine-800 rounded-2xl p-4 flex gap-2">
+                        <button onclick="toggleProjectorViewMode(false)" class="flex-1 py-2.5 rounded-xl font-bold text-xs border ${!state.isCompetitionView ? 'bg-gold-500 text-pine-950 border-gold-500' : 'bg-pine-950 border-pine-850 text-gray-400 hover:text-white'} transition">
+                            <i class="fa-solid fa-file-powerpoint ml-1.5"></i> پیشاندانی سلایدەکان
+                        </button>
+                        <button onclick="toggleProjectorViewMode(true)" class="flex-1 py-2.5 rounded-xl font-bold text-xs border ${state.isCompetitionView ? 'bg-gold-500 text-pine-950 border-gold-500' : 'bg-pine-950 border-pine-850 text-gray-400 hover:text-white'} transition">
+                            <i class="fa-solid fa-map-location-dot ml-1.5"></i> کێبڕکێی یاری نەخشە
+                        </button>
+                    </div>
+
+                    <!-- Slide control controller -->
+                    <div class="bg-pine-900 border border-pine-800 rounded-2xl p-5 space-y-4 shadow-xl flex-1 flex flex-col min-h-0">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-gold-300">ڕێکخستن و کۆنترۆڵکردنی سلاید</h4>
+                        
+                        <div class="bg-pine-950 border border-pine-850 p-4 rounded-xl space-y-2 flex-1 overflow-y-auto custom-scrollbar">
+                            <h5 class="font-black text-xs text-white">${currentSlide.title}</h5>
+                            <p class="text-xs text-gray-400 leading-relaxed">${currentSlide.content}</p>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button onclick="navigateSlides(-1)" class="flex-1 bg-pine-950 hover:bg-pine-850 border border-pine-800 text-gray-400 py-3 rounded-xl text-xs font-bold transition">
+                                <i class="fa-solid fa-arrow-right ml-1"></i> پێشوو
+                            </button>
+                            <button onclick="navigateSlides(1)" class="flex-1 bg-gold-500 hover:bg-gold-600 text-pine-950 py-3 rounded-xl text-xs font-black transition shadow-md">
+                                داهاتوو <i class="fa-solid fa-arrow-left mr-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Competition Board -->
+                <div class="flex-1 bg-pine-900 border border-pine-800 rounded-3xl p-6 shadow-2xl flex flex-col min-h-0 space-y-6 overflow-y-auto custom-scrollbar">
+                    <div class="flex items-center justify-between flex-wrap gap-4">
+                        <div>
+                            <span class="bg-gold-500/10 text-gold-300 font-mono text-xs px-3 py-1.5 rounded-full border border-gold-500/20 uppercase tracking-widest font-bold">لۆبی وانەی چالاک</span>
+                            <h3 class="font-display font-black text-xl text-white pt-2">${q.topic} \u2014 پرسیاری ${state.currentQuestionIndex + 1} لە ${state.questions.length}</h3>
+                        </div>
+                        
+                        <div class="flex items-center gap-3">
+                            <button onclick="copyProjectorLinkToClipboard()" class="bg-pine-850 text-gray-300 hover:text-white px-4 py-2.5 rounded-xl text-xs font-bold transition border border-pine-800 flex items-center gap-2">
+                                <i class="fa-solid fa-desktop"></i> <span>کۆپی بەستەری پڕۆجێکتۆر</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live game view dashboard -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-[350px]">
+                        <!-- Question Desk -->
+                        <div class="bg-pine-950 border border-pine-850 p-5 rounded-2xl flex flex-col justify-between">
+                            <div class="space-y-4">
+                                <p class="text-base font-black text-white leading-relaxed">${q.text}</p>
+                                
+                                <div class="grid grid-cols-1 gap-2">
+                                    ${q.options.map((opt, i) => `
+                                        <div class="p-3.5 rounded-xl border ${i === q.correctIndex ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-400' : 'bg-pine-900 border-pine-800 text-gray-400'} text-xs font-bold">
+                                            ${String.fromCharCode(65 + i)}. ${opt}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <div class="pt-4 flex gap-2">
+                                <button onclick="triggerCountdownTimer()" class="flex-1 bg-gold-500 text-pine-950 font-black py-3 rounded-xl text-xs shadow-md">
+                                    <i class="fa-solid fa-hourglass-start ml-1"></i> دەستپێکردنی کاتی وەڵامدانەوە
+                                </button>
+                                <button onclick="proceedToNextQuestionRound()" class="flex-1 bg-pine-900 text-gold-300 font-bold py-3 rounded-xl text-xs border border-gold-500/10">
+                                    <span>وێستگەی داهاتوو</span> <i class="fa-solid fa-chevron-left mr-1"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Expedition Map -->
+                        <div class="relative rounded-2xl overflow-hidden border border-pine-850 min-h-[300px]">
+                            <div id="leaflet-target" class="w-full h-full min-h-[300px]"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function getProjectorLiveHTML() {
+            if (!state.isCompetitionView) {
+                // If there's an embedded presentation link, show it via robust iframe wrapper
+                if (state.googleSlidesUrl && state.googleSlidesUrl.trim() !== "") {
+                    return `
+                    <div class="flex-1 flex flex-col bg-black h-full w-full overflow-hidden relative">
+                        <div class="absolute top-3 right-3 z-50 bg-pine-950/80 border border-pine-800 px-4 py-1.5 rounded-full text-xs text-gold-300 font-bold">
+                            پیشاندانی سلایدەکان (PPTX / Google Slides Embed)
+                        </div>
+                        <iframe src="${state.googleSlidesUrl}" frameborder="0" class="w-full h-full flex-1" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
+                    </div>`;
+                }
+
+                // Fallback to custom Kurdish interactive slides
+                const currentSlide = state.customSlides[state.activeSlideIndex] || { title: "دەستپێکردنی وانەی نوێ", content: "سەیری شاشەی مامۆستا بکە بۆ چالاککردنی کێبڕکێ..." };
+                
+                return `
+                <div class="flex-1 flex flex-col items-center justify-center p-8 bg-pine-950 text-center relative overflow-hidden">
+                    <div class="max-w-3xl space-y-6">
+                        <span class="bg-gold-500/10 text-gold-300 font-mono text-xs px-3 py-1.5 rounded-full border border-gold-500/20 uppercase tracking-widest font-bold">لاپەڕەی پێشکەشکردنی بابەت</span>
+                        <h2 class="font-display font-black text-3xl md:text-5xl text-white leading-tight">${currentSlide.title}</h2>
+                        <div class="h-1.5 w-24 bg-gold-500 mx-auto rounded-full"></div>
+                        <p class="text-sm md:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed">${currentSlide.content}</p>
+                    </div>
+                </div>`;
+            }
+
+            const q = state.questions[state.currentQuestionIndex];
+            if (!q) return `<div class="flex-1 flex items-center justify-center text-sm font-bold">باری کۆرسەکەت...</div>`;
+
+            return `
+            <div class="flex-1 flex flex-col p-6 space-y-6 text-right">
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                        <span class="bg-gold-500/10 text-gold-300 font-mono text-xs px-3 py-1.5 rounded-full border border-gold-500/20 uppercase tracking-widest font-bold">${q.topic}</span>
+                        <h2 class="font-display font-black text-2xl text-white pt-2 leading-relaxed">${q.text}</h2>
+                    </div>
+                    
+                    <div class="bg-pine-900 border border-pine-800 px-5 py-3 rounded-2xl flex items-center gap-3">
+                        <i class="fa-regular fa-clock text-gold-300 text-xl animate-pulse"></i>
+                        <div>
+                            <p class="text-[10px] text-gray-400">کاتەکەت</p>
+                            <p id="timer-display-node" class="text-lg font-black font-mono text-white text-left">${state.questionTimer.remaining} چرکە</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-0">
+                    <!-- Projector Options -->
+                    <div class="bg-pine-900 border border-pine-800 rounded-3xl p-6 flex flex-col justify-center space-y-4 shadow-xl">
+                        <div class="grid grid-cols-1 gap-3">
+                            ${q.options.map((opt, i) => `
+                                <div class="bg-pine-950 border border-pine-850 p-5 rounded-2xl text-xs font-bold text-gray-300 flex items-center gap-4 shadow-md">
+                                    <div class="bg-gold-500 text-pine-950 text-xs font-black w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0">${String.fromCharCode(65 + i)}</div>
+                                    <span>${opt}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Projector Live Map -->
+                    <div class="relative rounded-3xl overflow-hidden border border-pine-800 shadow-2xl min-h-[350px]">
+                        <div id="leaflet-target" class="w-full h-full min-h-[350px]"></div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function getStudentLiveHTML() {
+            const studentId = localStorage.getItem('LJ_STUDENT_ID');
+            
+            // Register Student in lobby before taking answers
+            if (!studentId || !state.joinedTeams.find(t => t.id === studentId)) {
+                return getStudentLobbyHTML();
+            }
+
+            const q = state.questions[state.currentQuestionIndex];
+            if (!q) {
+                return `
+                <div class="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                    <i class="fa-solid fa-hourglass text-5xl text-gold-300 animate-spin"></i>
+                    <h3 class="font-bold text-sm text-white">تەماشای پڕۆجێکتۆر بکە بۆ دەستپێکردن...</h3>
+                </div>`;
+            }
+
+            const alreadyAnswered = state.answersReceived[studentId] !== undefined;
+
+            if (alreadyAnswered) {
+                return `
+                <div class="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                    <i class="fa-solid fa-lock text-5xl text-gold-500 animate-pulse"></i>
+                    <h3 class="font-bold text-sm text-white">وەڵامەکەت جێگیرکرا! تەماشای پڕۆجێکتۆر بکە بۆ سەرکەوتن لە وێستگەکان.</h3>
+                </div>`;
+            }
+
+            return `
+            <div class="flex-1 flex flex-col p-6 space-y-6 text-right">
+                <div class="text-center">
+                    <span class="bg-gold-500/10 text-gold-300 font-mono text-xs px-3 py-1.5 rounded-full border border-gold-500/20 uppercase tracking-widest font-bold">${q.topic}</span>
+                    <h2 class="font-display font-black text-lg text-white pt-3 leading-relaxed">${q.text}</h2>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 max-w-md mx-auto w-full">
+                    ${q.options.map((opt, i) => `
+                        <button onclick="submitStudentAnswerIndex(${i})" class="w-full bg-pine-900 border border-pine-800 hover:border-gold-500 hover:bg-pine-850 p-4.5 rounded-2xl text-xs font-bold text-gray-300 flex items-center gap-3 transition text-right shadow-lg">
+                            <div class="bg-gold-500 text-pine-950 text-xs font-black w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0">${String.fromCharCode(65 + i)}</div>
+                            <span>${opt}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>`;
+        }
+
+        function getStudentLobbyHTML() {
+            return `
+            <div class="flex-1 flex items-center justify-center p-6 text-right">
+                <div class="bg-pine-900 border border-pine-800 rounded-3xl w-full max-w-md p-8 shadow-2xl space-y-6">
+                    <div class="text-center space-y-2">
+                        <span class="bg-gold-500/10 text-gold-300 font-mono text-xs px-3 py-1.5 rounded-full border border-gold-500/20 uppercase tracking-widest font-bold">بەشداریکردن لە گەشت</span>
+                        <h3 class="font-display font-black text-xl text-white pt-2">گەشتی کۆد: ${state.lobbyCode}</h3>
+                        <p class="text-xs text-gray-400">تکایە ناوی گرووپەکەت تۆمار بکە بۆ چوونە ناو گەشتە زانستییەکەوە.</p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-gold-300">ناوی گرووپی گەشت</label>
+                            <input type="text" id="student-team-name-input" placeholder="بۆ نموونە: تیمی شارەزایانی هەڵگورد" class="w-full bg-pine-950 border border-pine-800 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gold-500 text-sm font-black">
+                        </div>
+                        <button onclick="submitStudentRegistrationLobby()" class="w-full bg-gold-500 hover:bg-gold-600 text-pine-950 font-black py-4 rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-flag text-sm"></i>
+                            <span>چوونە ناو گەشتەکەوە</span>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function submitStudentRegistrationLobby() {
+            const nameInput = document.getElementById('student-team-name-input');
+            if (!nameInput || !nameInput.value.trim()) return;
+
+            const studentId = "std_" + Math.floor(Math.random() * 1000000);
+            localStorage.setItem('LJ_STUDENT_ID', studentId);
+
+            const teamColors = ["#c9a24b", "#6f9b6e", "#b4553f", "#8fb3c9", "#ae8f6f"];
+            const randomColor = teamColors[state.joinedTeams.length % teamColors.length];
+
+            state.joinedTeams.push({
+                id: studentId,
+                name: nameInput.value.trim(),
+                color: randomColor,
+                score: 0,
+                checkpointIndex: 0
+            });
+
+            state.phase = 'live';
+            publishSessionToSupabase();
+            renderApp();
+        }
+
+        function submitStudentAnswerIndex(index) {
+            const studentId = localStorage.getItem('LJ_STUDENT_ID') || 'guest';
+            state.answersReceived[studentId] = index;
+
+            const q = state.questions[state.currentQuestionIndex];
+            if (q && q.correctIndex === index) {
+                const team = state.joinedTeams.find(t => t.id === studentId);
+                if (team) {
+                    team.score += 10;
+                    team.checkpointIndex = Math.min(team.checkpointIndex + 1, state.checkpoints.length - 1);
+                }
+            }
+
+            publishSessionToSupabase();
+            renderApp();
+        }
+
+        function toggleProjectorViewMode(isCompetition) {
+            state.isCompetitionView = isCompetition;
+            publishSessionToSupabase();
+            renderApp();
+        }
+
+        function navigateSlides(direction) {
+            const nextIdx = state.activeSlideIndex + direction;
+            if (nextIdx >= 0 && nextIdx < state.customSlides.length) {
+                state.activeSlideIndex = nextIdx;
+                publishSessionToSupabase();
+                renderApp();
+            }
+        }
+
+        function initLeafletMapInstance() {
+            setTimeout(() => {
+                const mapContainer = document.getElementById('leaflet-target');
+                if (!mapContainer) return;
+
+                if (state.activeMapInstance) {
+                    try {
+                        state.activeMapInstance.remove();
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+
+                const firstStop = state.checkpoints[0] || { lat: 36.1911, lng: 44.0092 };
+                const map = L.map('leaflet-target', { zoomControl: false, attributionControl: false, scrollWheelZoom: false });
+                state.activeMapInstance = map;
+
+                L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 15 }).addTo(map);
+
+                const latlngs = state.checkpoints.map(cp => [cp.lat, cp.lng]);
+                map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
+
+                L.polyline(latlngs, { color: '#c9a24b', weight: 2.5, dashArray: '5 10', opacity: 0.85 }).addTo(map);
+
+                state.checkpoints.forEach((cp, idx) => {
+                    L.circleMarker([cp.lat, cp.lng], { radius: 7, color: '#efe8d6', weight: 2, fillColor: '#c9a24b', fillOpacity: 1 })
+                        .addTo(map)
+                        .bindTooltip(cp.name, { permanent: true, direction: 'top', className: 'text-[11px] border border-gold-500 bg-pine-950 text-white rounded-md p-1 font-bold' });
+                });
+
+                state.joinedTeams.forEach(team => {
+                    const stopIndex = Math.min(team.checkpointIndex, state.checkpoints.length - 1);
+                    const stop = state.checkpoints[stopIndex] || firstStop;
+
+                    const icon = L.divIcon({
+                        className: '',
+                        iconSize: [26, 26],
+                        iconAnchor: [13, 13],
+                        html: `<div class="w-7 h-7 rounded-full border-2 border-pine-950 flex items-center justify-center shadow-lg font-bold text-xs" style="background-color: ${team.color}; color: #0a1e17">${team.name[0]}</div>`
+                    });
+
+                    L.marker([stop.lat, stop.lng], { icon }).addTo(map);
+                });
+
+            }, 250);
+        }
+
+        function triggerCountdownTimer() {
+            if (state.questionTimer.interval) clearInterval(state.questionTimer.interval);
+            state.questionTimer.remaining = state.questionTimer.duration;
+
+            state.questionTimer.interval = setInterval(() => {
+                state.questionTimer.remaining--;
+                if (state.questionTimer.remaining <= 0) {
+                    clearInterval(state.questionTimer.interval);
+                    triggerToastNotification("کاتی پرسیارەکە کۆتایی پێهات! وەڵامی ڕاست جێگیرکرا.");
+                }
+                const timerNode = document.getElementById('timer-display-node');
+                if (timerNode) timerNode.innerText = `${state.questionTimer.remaining} چرکە`;
+                publishSessionToSupabase();
+            }, 1000);
+        }
+
+        function proceedToNextQuestionRound() {
+            if (state.currentQuestionIndex + 1 < state.questions.length) {
+                state.currentQuestionIndex++;
+                state.answersReceived = {};
+                publishSessionToSupabase();
+                renderApp();
+            } else {
+                state.phase = 'ended';
+                publishSessionToSupabase();
+                renderApp();
+            }
+        }
+
+        function getEndedHTML() {
+            return `
+            <div class="flex-1 flex flex-col items-center justify-center p-6 space-y-6 max-w-4xl mx-auto w-full text-right">
+                <div class="text-center space-y-2">
+                    <span class="bg-gold-500/10 text-gold-300 font-mono text-xs px-3 py-1.5 rounded-full border border-gold-500/20 uppercase tracking-widest font-bold">کۆتایی گەشتە زانستیەکە</span>
+                    <h2 class="font-display font-black text-3xl text-white pt-2">گەشتە مێژووییەکە بە سەرکەوتوویی تەواو بوو!</h2>
+                    <p class="text-sm text-gray-400 leading-relaxed">گرووپەکانی پۆل بە سەرکەوتوویی بەسەر هەموو وێستگەکانی سەر نەخشەدا زاڵ بوون و بە نمرەی نایاب خولەکەیان تەواو کرد.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                    <!-- Leaderboard -->
+                    <div class="bg-pine-900 border border-pine-800 rounded-3xl p-6 shadow-2xl space-y-4">
+                        <h4 class="font-bold text-sm text-white border-b border-pine-850 pb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-award text-gold-300"></i> ڕیزبەندی نمرەی تیمی پۆل
+                        </h4>
+                        <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                            ${state.joinedTeams.map((team, idx) => `
+                                <div class="bg-pine-950 border border-pine-850 p-4 rounded-2xl flex items-center justify-between shadow-inner">
+                                    <div class="flex items-center gap-3">
+                                        <div class="bg-gold-500 text-pine-950 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0">${idx + 1}</div>
+                                        <span class="font-bold text-sm text-white">${team.name}</span>
+                                    </div>
+                                    <div class="text-left">
+                                        <p class="text-xs font-mono text-gold-300">${team.score} نمرە</p>
+                                        <p class="text-[10px] text-gray-400">کۆتایی وێستگەی ${team.checkpointIndex + 1}</p>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- PDF downloads desk -->
+                    <div class="bg-pine-900 border border-pine-800 rounded-3xl p-6 shadow-2xl flex flex-col justify-between">
+                        <div class="space-y-4">
+                            <h4 class="font-bold text-sm text-white border-b border-pine-850 pb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-print text-gold-300"></i> بەڕێوەبردنی ڕاپۆرتی زانستی مامۆستا
+                            </h4>
+                            <p class="text-xs text-gray-400 leading-relaxed">دەتوانیت بە یەک کلیک تەواوی نمرەکانی پۆلەکە لە شێوەی پەڕەی فەرمی PDF داگریت بۆ ئەرشیف یان بۆ دابەشکردنی نمرە بەسەر قوتابیاندا.</p>
+                        </div>
+                        <button onclick="downloadAllExpeditionReports()" class="w-full bg-gold-500 hover:bg-gold-600 text-pine-950 font-black py-4 rounded-2xl transition shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-file-pdf text-lg"></i>
+                            <span>داگرتنی ڕاپۆرتی نمرەکانی پۆل (PDF)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function downloadAllExpeditionReports() {
+            if (typeof jspdf === 'undefined') {
+                triggerToastNotification("سیستەمی داگرتن خەریکی چالاکبوونە، چەند چرکەیەکی تر تاقی بکەرەوە.");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(20);
+            doc.text("Learning Journeys Classroom Analytics Report", 20, 20);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(12);
+            doc.text(`Theme Session: ${state.selectedTheme.toUpperCase()}`, 20, 30);
+            doc.text(`Lobby Code: ${state.lobbyCode}`, 20, 38);
+
+            doc.text("Classroom Performance Leaderboard:", 20, 52);
+            let cursorY = 62;
+            state.joinedTeams.forEach((team, idx) => {
+                doc.text(`${idx + 1}. Team Name: ${team.name} | Score: ${team.score} pts | Stops: ${team.checkpointIndex + 1}`, 20, cursorY);
+                cursorY += 10;
+            });
+
+            doc.save(`Performance_Report_${state.lobbyCode}.pdf`);
+        }
+    </script>
+</body>
+</html>
